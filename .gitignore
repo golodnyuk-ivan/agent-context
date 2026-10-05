@@ -10,4 +10,4 @@ build/
 # Local tool state
 .codegraph/
 .claude/
-.idea
+.idea/

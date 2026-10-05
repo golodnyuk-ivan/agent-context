@@ -8,6 +8,7 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.SelectionModel;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -23,27 +24,18 @@ import java.util.List;
 public final class SendSelectionAction extends DumbAwareAction {
     @Override
     public void update(@NotNull AnActionEvent event) {
-        Editor editor = event.getData(CommonDataKeys.EDITOR);
-        VirtualFile file = event.getData(CommonDataKeys.VIRTUAL_FILE);
-        event.getPresentation().setEnabled(
-            event.getProject() != null && editor != null && file != null
-                && editor.getSelectionModel().hasSelection()
-        );
+        Project project = event.getProject();
+        event.getPresentation().setEnabled(project != null && resolveContext(event, project) != null);
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent event) {
         Project project = event.getProject();
-        Editor editor = event.getData(CommonDataKeys.EDITOR);
-        VirtualFile file = event.getData(CommonDataKeys.VIRTUAL_FILE);
-        if (project == null || editor == null || file == null) {
+        if (project == null) {
             return;
         }
-
-        SelectionModel selection = editor.getSelectionModel();
-        int startOffset = selection.getSelectionStart();
-        int endOffset = selection.getSelectionEnd();
-        if (endOffset <= startOffset) {
+        Context context = resolveContext(event, project);
+        if (context == null) {
             return;
         }
 
@@ -68,12 +60,28 @@ public final class SendSelectionAction extends DumbAwareAction {
             return;
         }
 
-        Document document = editor.getDocument();
-        int startLine = document.getLineNumber(startOffset) + 1;
-        int endLine = document.getLineNumber(endOffset - 1) + 1;
-        FileDocumentManager.getInstance().saveDocument(document);
+        Editor editor = context.editor();
+        Document document = editor != null
+            ? editor.getDocument()
+            : FileDocumentManager.getInstance().getDocument(context.file());
+        String lineRange = "";
+        if (editor != null) {
+            SelectionModel selection = editor.getSelectionModel();
+            int startOffset = selection.getSelectionStart();
+            int endOffset = selection.getSelectionEnd();
+            if (endOffset > startOffset) {
+                int startLine = document.getLineNumber(startOffset) + 1;
+                int endLine = document.getLineNumber(endOffset - 1) + 1;
+                lineRange = ":" + startLine + (endLine == startLine ? "" : "-" + endLine);
+            } else {
+                lineRange = ":" + (document.getLineNumber(editor.getCaretModel().getOffset()) + 1);
+            }
+        }
+        if (document != null) {
+            FileDocumentManager.getInstance().saveDocument(document);
+        }
 
-        String path = file.getPath();
+        String path = context.file().getPath();
         String basePath = project.getBasePath();
         if (basePath != null) {
             Path base = Path.of(basePath);
@@ -83,12 +91,30 @@ public final class SendSelectionAction extends DumbAwareAction {
             }
         }
 
-        String reference = " " + path + ":" + startLine
-            + (endLine == startLine ? "" : "-" + endLine) + " ";
-        selectedTabs.get(0).getView().createSendTextBuilder()
+        String reference = " " + path + lineRange + " ";
+        TerminalToolWindowTab tab = selectedTabs.get(0);
+        tab.getView().createSendTextBuilder()
             .useBracketedPasteMode()
             .send(reference);
+        if (AgentContextSettings.getInstance().isFocusTerminal()) {
+            toolWindow.activate(null);
+        }
     }
+
+    private static Context resolveContext(AnActionEvent event, Project project) {
+        Editor editor = event.getData(CommonDataKeys.EDITOR);
+        if (editor != null) {
+            VirtualFile file = FileDocumentManager.getInstance().getFile(editor.getDocument());
+            if (file != null) {
+                return new Context(file, editor);
+            }
+        }
+
+        VirtualFile file = FileEditorManager.getInstance(project).getCurrentFile();
+        return file == null ? null : new Context(file, null);
+    }
+
+    private record Context(VirtualFile file, Editor editor) {}
 
     private static void warn(Project project, String message) {
         NotificationGroupManager.getInstance()
