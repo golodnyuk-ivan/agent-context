@@ -1,0 +1,13 @@
+# Gradle and IntelliJ Platform build data
+.gradle/
+.gradle-cache/
+.intellijPlatform/
+build/
+
+# macOS metadata
+.DS_Store
+
+# Local tool state
+.codegraph/
+.claude/
+.idea

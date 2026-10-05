@@ -1,0 +1,34 @@
+<idea-plugin>
+    <id>dev.agentcontext</id>
+    <name>Agent Context</name>
+    <version>0.2.0</version>
+    <vendor>Golodnyuk Ivan</vendor>
+    <description><![CDATA[
+        <p>Send the selected file path and line range to the active terminal tab. Select text in the editor of Rider, WebStorm, PyCharm, GoLand, or another IntelliJ Platform IDE and press <code>⌘'</code> (Command plus apostrophe). The plugin saves the file, then inserts its project-relative path and inclusive line range into the selected <strong>Terminal</strong> tab, for example <code>src/Foo.cs:44-46</code>.</p>
+        <p>Requires IDE version 2025.3 or newer with the Terminal plugin enabled and Reworked Terminal selected. If <code>⌘'</code> is already assigned, choose another shortcut for <strong>Add Selected Lines to Agent Context</strong> in Settings → Keymap.</p>
+        <h3>Build on macOS</h3>
+        <ol>
+            <li>Install Gradle 9.x with <code>brew install gradle</code> and check its version with <code>gradle --version</code>.</li>
+            <li>Build against an installed IDE. This example uses GoLand in <code>~/Applications</code>; replace the path with Rider, WebStorm, or PyCharm if needed. The IDE's bundled JDK is used automatically. From the project directory, run <code>IDE_APP="$HOME/Applications/GoLand.app"</code>, then <code>JAVA_HOME="$IDE_APP/Contents/jbr/Contents/Home" gradle buildPlugin "-PlocalIdePath=$IDE_APP"</code>.</li>
+            <li>Find the archive with <code>ls -lh build/distributions/agent-context-*.zip</code> and install it via Settings → Plugins → gear icon → Install Plugin from Disk.</li>
+        </ol>
+        <p>Plugin ID: <code>dev.agentcontext</code>.</p>
+    ]]></description>
+    <idea-version since-build="253"/>
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.terminal</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Agent Context" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action id="AgentContext.SendSelection"
+                class="dev.agentcontext.SendSelectionAction"
+                text="Add Selected Lines to Agent Context"
+                description="Insert the selected file and line range into the active terminal">
+            <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="meta QUOTE"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
